@@ -31,16 +31,6 @@
 
 * { box-sizing: border-box; }
 
-/* ===== Barres de défilement aux couleurs du site (plus de barres blanches) ===== */
-:root { color-scheme: light dark; }
-* { scrollbar-width: thin; scrollbar-color: var(--bordure) transparent; }       /* Firefox (et Chrome récent) */
-*:hover { scrollbar-color: var(--neutre) transparent; }
-::-webkit-scrollbar { width: 10px; height: 10px; }                               /* Chrome, Edge, Opera */
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--bordure); border-radius: 999px; border: 2px solid var(--fond); }
-::-webkit-scrollbar-thumb:hover { background: var(--neutre); }
-::-webkit-scrollbar-corner { background: transparent; }
-
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -154,8 +144,11 @@ h3 { font-size: 0.95rem; }
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
   padding: 18px;
-  align-self: start; /* le panneau défile avec la page, sans barre à lui */
+  align-self: start;
+  position: sticky;
+  top: 16px;
 }
+@media (max-width: 800px) { .panneau { position: static; } }
 .panneau h2 + .aide { margin-top: 2px; }
 .panneau h2:not(:first-child) { margin-top: 22px; margin-bottom: 10px; }
 
@@ -188,29 +181,8 @@ select, input[type="search"] {
 .bouton-secondaire:hover { border-color: var(--accent); color: var(--accent); }
 
 /* ===== Résultats ===== */
-/* La zone "Recommandations" a sa propre barre de défilement :
-   molette au-dessus de la liste -> la liste défile ;
-   molette ailleurs -> la page défile. */
-.resultats {
-  min-width: 0;
-  position: sticky;
-  top: 16px;
-  height: calc(100vh - 32px);
-  overflow-y: auto;
-  overscroll-behavior: contain; /* arrivé en bas de la liste, la page ne bouge pas */
-  padding-right: 6px;
-}
-.resultats-entete {
-  display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap;
-  /* le titre reste visible en haut quand on fait défiler la liste */
-  position: sticky; top: 0; z-index: 2;
-  background: var(--fond);
-  padding-bottom: 12px;
-}
-@media (max-width: 800px) {
-  /* sur téléphone, une seule colonne : on garde le défilement normal de la page */
-  .resultats { position: static; height: auto; overflow: visible; padding-right: 0; }
-}
+.resultats { min-width: 0; }
+.resultats-entete { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
 
 .carte-graphique {
   background: var(--surface);
@@ -219,7 +191,7 @@ select, input[type="search"] {
   padding: 16px;
   margin-bottom: 16px;
 }
-.graphique-zone { position: relative; height: 260px; }
+.graphique-zone { position: relative; height: 340px; }
 
 .liste-jeux { display: flex; flex-direction: column; gap: 10px; }
 
@@ -291,3 +263,23 @@ select, input[type="search"] {
 
 .pied { color: var(--texte-doux); font-size: 0.8rem; padding-bottom: 24px; }
 .erreur { color: var(--mauvais); }
+
+/* ===== Carte d'infos du graphique prix / durée (au survol d'un point) ===== */
+#infobulle-nuage {
+  position: absolute;
+  z-index: 5;
+  width: 230px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+.nuage-image { display: block; width: 100%; aspect-ratio: 460 / 215; object-fit: cover; background: var(--bordure); }
+.nuage-corps { padding: 10px 12px 12px; }
+.nuage-nom { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+.nuage-infos { color: var(--texte-doux); font-size: 0.82rem; }
+.nuage-score { display: inline-block; margin-top: 8px; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: #10141a; }
