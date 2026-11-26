@@ -206,16 +206,111 @@ function afficher() {
 }
 
 // ---------- 5. Graphique "prix / durée de vie" ----------
+// Chaque point = un jeu. Sa couleur et sa taille dépendent du score de recommandation
+// (rouge = faible, vert = élevé). Au survol : l'image du jeu apparaît sur le point
+// et une petite carte d'infos s'affiche à côté. Un clic ouvre la fiche détaillée.
+const imagesNuage = {}; // images déjà chargées (appid -> Image)
+
+function chargerImageNuage(appid) {
+  if (!imagesNuage[appid]) {
+    const img = new Image();
+    img.onload = () => { if (graphiqueNuage) graphiqueNuage.draw(); }; // on redessine quand l'image arrive
+    img.src = imageDuJeu(appid, "header");
+    imagesNuage[appid] = img;
+  }
+  return imagesNuage[appid];
+}
+
+// score 30 -> rouge, score 90 -> vert
+function couleurScore(score, opacite = 1) {
+  const t = borner((score - 30) / 60, 0, 1);
+  return `hsla(${Math.round(t * 140)}, 80%, 58%, ${opacite})`;
+}
+
+// Dessine l'image du jeu dans un rond, par-dessus le point survolé
+const pluginImageSurvol = {
+  id: "imageSurvol",
+  afterDatasetsDraw(chart) {
+    const actifs = chart.getActiveElements();
+    if (!actifs.length) return;
+    const { datasetIndex, index, element } = actifs[0];
+    const p = chart.data.datasets[datasetIndex].data[index];
+    const img = imagesNuage[p.appid];
+    const ctx = chart.ctx;
+    const r = 24;
+
+    ctx.save();
+    // anneau coloré avec une ombre
+    ctx.shadowColor = "rgba(0, 0, 0, 0.45)";
+    ctx.shadowBlur = 14;
+    ctx.beginPath();
+    ctx.arc(element.x, element.y, r + 3, 0, Math.PI * 2);
+    ctx.fillStyle = couleurScore(p.score);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // image du jeu, recadrée au centre et découpée en rond
+    ctx.beginPath();
+    ctx.arc(element.x, element.y, r, 0, Math.PI * 2);
+    ctx.clip();
+    if (img && img.complete && img.naturalWidth) {
+      const cote = Math.min(img.naturalWidth, img.naturalHeight);
+      ctx.drawImage(img, (img.naturalWidth - cote) / 2, (img.naturalHeight - cote) / 2, cote, cote,
+        element.x - r, element.y - r, r * 2, r * 2);
+    } else {
+      ctx.fillStyle = "#2a3039";
+      ctx.fill();
+    }
+    ctx.restore();
+  },
+};
+
+// Petite carte d'infos (HTML) affichée au survol d'un point
+function afficherInfobulleNuage(contexte) {
+  const { chart, tooltip } = contexte;
+  const zone = chart.canvas.parentNode;
+  let el = document.getElementById("infobulle-nuage");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "infobulle-nuage";
+    zone.appendChild(el);
+  }
+  if (tooltip.opacity === 0) { el.style.opacity = 0; return; }
+
+  const p = tooltip.dataPoints[0].raw;
+  const prixTexte = p.x === 0 ? "Gratuit" : p.x.toFixed(2).replace(".", ",") + " €";
+  el.innerHTML = `
+    <img class="nuage-image" src="${imageDuJeu(p.appid, "header")}" alt="" onerror="this.style.visibility='hidden'">
+    <div class="nuage-corps">
+      <div class="nuage-nom">${echapper(p.nom)}</div>
+      <div class="nuage-infos">${prixTexte} · ${Math.round(p.y).toLocaleString("fr-FR")} h de jeu en moyenne</div>
+      <span class="nuage-score" style="background:${couleurScore(p.score)}">Score ${p.score} / 100</span>
+    </div>`;
+
+  // la carte se place à droite du point, ou à gauche si on est près du bord droit
+  const aGauche = tooltip.caretX > chart.width * 0.6;
+  const haut = borner(tooltip.caretY, el.offsetHeight / 2, chart.height - el.offsetHeight / 2);
+  el.style.left = tooltip.caretX + "px";
+  el.style.top = haut + "px";
+  el.style.transform = aGauche ? "translate(calc(-100% - 34px), -50%)" : "translate(34px, -50%)";
+  el.style.opacity = 1;
+}
+
 function dessinerNuage(resultats) {
   if (typeof Chart === "undefined") return; // Chart.js pas chargé (pas d'internet)
-  const points = resultats.map(({ jeu, analyse }) => ({
-    x: prixDuJeu(jeu),
-    y: Math.round(jeu.tempsMoyenMin / 60),
-    nom: jeu.nom,
-    score: analyse.score,
-  }));
-  const couleurAccent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
-  const couleurTexte = getComputedStyle(document.documentElement).getPropertyValue("--texte-doux").trim();
+  const points = resultats.map(({ jeu, analyse }) => {
+    chargerImageNuage(jeu.appid);
+    return {
+      x: prixDuJeu(jeu),
+      y: Math.max(0.5, jeu.tempsMoyenMin / 60), // l'échelle log n'accepte pas 0
+      appid: jeu.appid,
+      nom: jeu.nom,
+      score: analyse.score,
+    };
+  });
+  const style = getComputedStyle(document.documentElement);
+  const couleurTexte = style.getPropertyValue("--texte-doux").trim();
+  const couleurGrille = style.getPropertyValue("--bordure").trim();
 
   if (graphiqueNuage) graphiqueNuage.destroy();
   graphiqueNuage = new Chart($("graphique-nuage"), {
@@ -223,26 +318,43 @@ function dessinerNuage(resultats) {
     data: {
       datasets: [{
         data: points,
-        backgroundColor: couleurAccent + "99",
-        borderColor: couleurAccent,
-        pointRadius: (ctx) => 3 + (ctx.raw ? ctx.raw.score / 20 : 0), // plus le score est haut, plus le point est gros
+        backgroundColor: (ctx) => couleurScore(ctx.raw ? ctx.raw.score : 0, 0.55),
+        borderColor: (ctx) => couleurScore(ctx.raw ? ctx.raw.score : 0),
+        borderWidth: 1.5,
+        pointRadius: (ctx) => 4 + (ctx.raw ? ctx.raw.score / 14 : 0), // plus le score est haut, plus le point est gros
+        pointHoverRadius: (ctx) => 4 + (ctx.raw ? ctx.raw.score / 14 : 0),
+        pointHitRadius: 10,
       }],
     },
     options: {
       maintainAspectRatio: false,
+      layout: { padding: 12 },
+      interaction: { mode: "nearest", intersect: true },
+      animation: { duration: 400 },
+      onHover: (evt, elements) => { evt.native.target.style.cursor = elements.length ? "pointer" : "default"; },
+      onClick: (evt, elements) => { if (elements.length) ouvrirDetail(points[elements[0].index].appid); },
       plugins: {
         legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => `${ctx.raw.nom} : ${ctx.raw.x} €, ${ctx.raw.y} h, score ${ctx.raw.score}`,
-          },
-        },
+        tooltip: { enabled: false, external: afficherInfobulleNuage },
       },
       scales: {
-        x: { title: { display: true, text: "Prix (€)", color: couleurTexte }, ticks: { color: couleurTexte } },
-        y: { type: "logarithmic", title: { display: true, text: "Temps de jeu moyen (h)", color: couleurTexte }, ticks: { color: couleurTexte } },
+        x: {
+          grace: "4%",
+          title: { display: true, text: "Prix", color: couleurTexte },
+          ticks: { color: couleurTexte, callback: (v) => (v < 0 ? "" : v + " €") },
+          grid: { color: couleurGrille, drawTicks: false },
+          border: { display: false },
+        },
+        y: {
+          type: "logarithmic",
+          title: { display: true, text: "Temps de jeu moyen", color: couleurTexte },
+          ticks: { color: couleurTexte, callback: (v) => ([1, 10, 100, 1000, 10000].includes(v) ? v + " h" : "") },
+          grid: { color: couleurGrille, drawTicks: false },
+          border: { display: false },
+        },
       },
     },
+    plugins: [pluginImageSurvol],
   });
 }
 
@@ -349,7 +461,7 @@ const VALEURS_DEFAUT = {
 };
 
 document.querySelectorAll(".panneau input, .panneau select").forEach((el) =>
-  el.addEventListener("input", () => { nombreAffiches = 20; afficher(); $("resultats").scrollTop = 0; })
+  el.addEventListener("input", () => { nombreAffiches = 20; afficher(); })
 );
 $("voir-plus").addEventListener("click", () => { nombreAffiches += 20; afficher(); });
 $("reinitialiser").addEventListener("click", () => {
