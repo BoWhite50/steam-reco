@@ -461,7 +461,7 @@ const VALEURS_DEFAUT = {
 };
 
 document.querySelectorAll(".panneau input, .panneau select").forEach((el) =>
-  el.addEventListener("input", () => { nombreAffiches = 20; afficher(); })
+  el.addEventListener("input", () => { nombreAffiches = 20; afficher(); $("resultats").scrollTop = 0; })
 );
 $("voir-plus").addEventListener("click", () => { nombreAffiches += 20; afficher(); });
 $("reinitialiser").addEventListener("click", () => {
