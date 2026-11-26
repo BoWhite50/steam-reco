@@ -120,8 +120,8 @@ const CLES_POIDS = ["avis", "rentabilite", "duree", "retention", "joueurs", "pep
 function lireParametres() {
   const poids = {};
   for (const cle of CLES_POIDS) {
-    poids[cle] = Number($("poids-" + cle).value);
-    $("val-" + cle).textContent = poids[cle];
+    // le bouton coché du critère : Non = 0, Un peu = 3, Oui = 6, Beaucoup = 10
+    poids[cle] = Number(document.querySelector(`input[name="poids-${cle}"]:checked`).value);
   }
   const prixMax = Number($("prix-max").value);
   $("val-prix").textContent = prixMax >= 80 ? "sans limite" : prixMax === 0 ? "gratuit" : prixMax + " €";
@@ -455,10 +455,8 @@ async function chargerJeux() {
 }
 
 // ---------- 8. Les événements ----------
-const VALEURS_DEFAUT = {
-  "poids-avis": 5, "poids-rentabilite": 5, "poids-duree": 5, "poids-retention": 5, "poids-joueurs": 5, "poids-pepite": 0,
-  "prix-max": 80, "duree-min": 0,
-};
+const POIDS_DEFAUT = { avis: 6, rentabilite: 6, duree: 6, retention: 6, joueurs: 6, pepite: 0 };
+const VALEURS_DEFAUT = { "prix-max": 80, "duree-min": 0 };
 
 document.querySelectorAll(".panneau input, .panneau select").forEach((el) =>
   el.addEventListener("input", () => { nombreAffiches = 20; afficher(); $("resultats").scrollTop = 0; })
@@ -466,6 +464,9 @@ document.querySelectorAll(".panneau input, .panneau select").forEach((el) =>
 $("voir-plus").addEventListener("click", () => { nombreAffiches += 20; afficher(); });
 $("reinitialiser").addEventListener("click", () => {
   for (const id in VALEURS_DEFAUT) $(id).value = VALEURS_DEFAUT[id];
+  for (const cle in POIDS_DEFAUT) {
+    document.querySelector(`input[name="poids-${cle}"][value="${POIDS_DEFAUT[cle]}"]`).checked = true;
+  }
   $("type-jeu").value = "tous";
   $("categorie").value = "jeu";
   $("tri").value = "score";

@@ -9,7 +9,7 @@ Projet étudiant Ynov, cours "Outils IA".
 1. **Carrousel "Top du jour"** en haut : les jeux les plus joués aujourd'hui sur Steam, en grandes cartes. On passe d'une page à l'autre avec les flèches (boutons ou touches ← →).
 2. **Carrousel "Pépites montantes"** : les jeux récents, pas chers et très bien notés qui explosent en ce moment (comme Peak ou How to Fish).
 3. **Interface de recommandation** en dessous :
-   - des curseurs pour dire ce qui compte pour toi (avis, rentabilité, durée de vie, rétention, nombre de joueurs, pépite montante) ;
+   - des boutons à 4 niveaux (Non, Un peu, Oui, Beaucoup) pour dire ce qui compte pour toi (avis, rentabilité, durée de vie, rétention, nombre de joueurs, pépite montante) ;
    - des filtres (jeux vidéo ou logiciels, type de jeu indé / gros budget, prix max, temps de jeu minimum, recherche par nom, tri) ;
    - un graphique "prix / durée de vie" ;
    - une fiche détaillée pour chaque jeu, avec un graphique radar et le nombre de joueurs connectés en direct.
@@ -31,7 +31,7 @@ Elles sont toutes dans `public/js/regles.js`.
 
 Une **vraie pépite** doit cocher toutes les cases : pas un gros budget, 20 € maximum, au moins 85 % d'avis positifs (avec 200 avis minimum) et au moins 2 000 joueurs en même temps.
 
-**Score de recommandation (sur 100)** : moyenne des scores des règles 1, 2, 3, 4, 6 et 7, pondérée par les curseurs. Le choix du type de jeu (règle 5) donne +10 ou −10 points.
+**Score de recommandation (sur 100)** : moyenne des scores des règles 1, 2, 3, 4, 6 et 7, pondérée par les boutons (Non = 0, Un peu = 3, Oui = 6, Beaucoup = 10). Le choix du type de jeu (règle 5) donne +10 ou −10 points.
 
 ## Les API utilisées
 

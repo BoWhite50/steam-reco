@@ -48,32 +48,62 @@
 
     <aside class="panneau" aria-label="Paramètres">
       <h2>Ce qui compte pour moi</h2>
-      <p class="aide">Bouge les curseurs : 0 = je m'en fiche, 10 = très important.</p>
+      <p class="aide">Pour chaque critère, choisis à quel point il compte.</p>
 
-      <div class="curseur">
-        <label for="poids-avis">Avis des joueurs <span id="val-avis">5</span></label>
-        <input type="range" id="poids-avis" min="0" max="10" value="5">
-      </div>
-      <div class="curseur">
-        <label for="poids-rentabilite">Rentabilité (€ par heure) <span id="val-rentabilite">5</span></label>
-        <input type="range" id="poids-rentabilite" min="0" max="10" value="5">
-      </div>
-      <div class="curseur">
-        <label for="poids-duree">Durée de vie <span id="val-duree">5</span></label>
-        <input type="range" id="poids-duree" min="0" max="10" value="5">
-      </div>
-      <div class="curseur">
-        <label for="poids-retention">Rétention (jeux anciens) <span id="val-retention">5</span></label>
-        <input type="range" id="poids-retention" min="0" max="10" value="5">
-      </div>
-      <div class="curseur">
-        <label for="poids-joueurs">Nombre de joueurs <span id="val-joueurs">5</span></label>
-        <input type="range" id="poids-joueurs" min="0" max="10" value="5">
-      </div>
-      <div class="curseur">
-        <label for="poids-pepite">Pépite montante (récent, pas cher, en forte hausse) <span id="val-pepite">0</span></label>
-        <input type="range" id="poids-pepite" min="0" max="10" value="0">
-      </div>
+      <fieldset class="critere">
+        <legend>Avis des joueurs</legend>
+        <div class="niveaux">
+          <label><input type="radio" name="poids-avis" value="0"><span>Non</span></label>
+          <label><input type="radio" name="poids-avis" value="3"><span>Un peu</span></label>
+          <label><input type="radio" name="poids-avis" value="6" checked><span>Oui</span></label>
+          <label><input type="radio" name="poids-avis" value="10"><span>Beaucoup</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="critere">
+        <legend>Rentabilité (€ par heure)</legend>
+        <div class="niveaux">
+          <label><input type="radio" name="poids-rentabilite" value="0"><span>Non</span></label>
+          <label><input type="radio" name="poids-rentabilite" value="3"><span>Un peu</span></label>
+          <label><input type="radio" name="poids-rentabilite" value="6" checked><span>Oui</span></label>
+          <label><input type="radio" name="poids-rentabilite" value="10"><span>Beaucoup</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="critere">
+        <legend>Durée de vie</legend>
+        <div class="niveaux">
+          <label><input type="radio" name="poids-duree" value="0"><span>Non</span></label>
+          <label><input type="radio" name="poids-duree" value="3"><span>Un peu</span></label>
+          <label><input type="radio" name="poids-duree" value="6" checked><span>Oui</span></label>
+          <label><input type="radio" name="poids-duree" value="10"><span>Beaucoup</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="critere">
+        <legend>Rétention (jeux anciens)</legend>
+        <div class="niveaux">
+          <label><input type="radio" name="poids-retention" value="0"><span>Non</span></label>
+          <label><input type="radio" name="poids-retention" value="3"><span>Un peu</span></label>
+          <label><input type="radio" name="poids-retention" value="6" checked><span>Oui</span></label>
+          <label><input type="radio" name="poids-retention" value="10"><span>Beaucoup</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="critere">
+        <legend>Nombre de joueurs</legend>
+        <div class="niveaux">
+          <label><input type="radio" name="poids-joueurs" value="0"><span>Non</span></label>
+          <label><input type="radio" name="poids-joueurs" value="3"><span>Un peu</span></label>
+          <label><input type="radio" name="poids-joueurs" value="6" checked><span>Oui</span></label>
+          <label><input type="radio" name="poids-joueurs" value="10"><span>Beaucoup</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="critere">
+        <legend>Pépite montante</legend>
+        <div class="niveaux">
+          <label><input type="radio" name="poids-pepite" value="0" checked><span>Non</span></label>
+          <label><input type="radio" name="poids-pepite" value="3"><span>Un peu</span></label>
+          <label><input type="radio" name="poids-pepite" value="6"><span>Oui</span></label>
+          <label><input type="radio" name="poids-pepite" value="10"><span>Beaucoup</span></label>
+        </div>
+      </fieldset>
 
       <h2>Filtres</h2>
 

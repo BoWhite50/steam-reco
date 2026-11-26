@@ -162,7 +162,54 @@ h3 { font-size: 0.95rem; }
 .curseur, .champ { margin-bottom: 14px; }
 .curseur label, .champ label { display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 4px; }
 .curseur span, .champ label span { color: var(--accent); font-weight: 600; }
-input[type="range"] { width: 100%; accent-color: var(--accent); }
+/* ----- Les critères : 4 boutons collés (Non / Un peu / Oui / Beaucoup) ----- */
+.critere { border: 0; padding: 0; margin: 0 0 14px; min-width: 0; }
+.critere legend { font-size: 0.88rem; margin-bottom: 6px; padding: 0; }
+.niveaux {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  background: var(--fond);
+  border: 1px solid var(--bordure);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+.niveaux label { cursor: pointer; }
+.niveaux input { position: absolute; opacity: 0; pointer-events: none; } /* on cache le rond, on garde le bouton */
+.niveaux span {
+  display: block;
+  text-align: center;
+  font-size: 0.8rem;
+  padding: 5px 2px;
+  border-radius: 6px;
+  color: var(--texte-doux);
+  transition: background 0.15s, color 0.15s;
+}
+.niveaux label:hover span { color: var(--texte); background: var(--surface); }
+.niveaux input:checked + span { background: var(--accent); color: #fff; font-weight: 600; }
+.niveaux input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ----- Les curseurs des filtres (prix, temps de jeu) aux couleurs du site ----- */
+input[type="range"] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 22px;
+  background: transparent;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: var(--bordure); }
+input[type="range"]::-moz-range-track { height: 6px; border-radius: 999px; background: var(--bordure); }
+input[type="range"]::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--accent); }
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 18px; height: 18px; margin-top: -6px;
+  border-radius: 50%; background: var(--accent);
+  border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--accent);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 12px; height: 12px;
+  border-radius: 50%; background: var(--accent);
+  border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--accent);
+}
 select, input[type="search"] {
   width: 100%;
   padding: 7px 9px;
