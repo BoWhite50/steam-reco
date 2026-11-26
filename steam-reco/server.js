@@ -19,11 +19,12 @@ const UN_JOUR = 24 * UNE_HEURE;
 const UNE_SEMAINE = 7 * UN_JOUR;
 
 // ---------- Cache (mémoire + fichier data/cache.json) ----------
-let cache = { listes: {}, details: {} };
+let cache = { listes: {}, details: {}, steamspy: {} };
 try {
   cache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"));
   cache.listes = cache.listes || {};
   cache.details = cache.details || {};
+  cache.steamspy = cache.steamspy || {};
 } catch (e) {
   // pas encore de cache, ce n'est pas grave
 }
@@ -88,6 +89,32 @@ function chargerTopDuJour() {
   });
 }
 
+// Steam Store : les meilleures ventes et les nouveautés du moment.
+// C'est là qu'on trouve les petits jeux qui explosent (ils ne sont pas
+// encore dans les listes SteamSpy, qui sont plus lentes à se mettre à jour).
+function chargerVitrine() {
+  return listeAvecCache("vitrine", UNE_HEURE, async () => {
+    const r = await telechargerJSON("https://store.steampowered.com/api/featuredcategories?cc=fr&l=english");
+    const ids = (bloc) => ((bloc && bloc.items) || []).map((i) => i.id).filter(Boolean);
+    return { meilleuresVentes: ids(r.top_sellers), nouveautes: ids(r.new_releases) };
+  });
+}
+
+// SteamSpy : les infos d'UN jeu (avis, temps de jeu, propriétaires...).
+// Utile pour les jeux récents qui ne sont pas dans les grandes listes.
+async function chargerSteamSpyJeu(appid) {
+  const c = cache.steamspy[appid];
+  if (c && Date.now() - c.date < UN_JOUR) return c;
+  const j = await telechargerJSON(`https://steamspy.com/api.php?request=appdetails&appid=${appid}`);
+  // on ne garde que ce qui nous sert (le cache reste petit)
+  const garde = { date: Date.now(), ok: !!j.name };
+  for (const cle of ["appid", "name", "developer", "publisher", "positive", "negative", "owners",
+    "average_forever", "average_2weeks", "median_forever", "price", "ccu"]) garde[cle] = j[cle];
+  cache.steamspy[appid] = garde;
+  sauvegarderCache();
+  return garde;
+}
+
 // Steam Store : date de sortie + genres (contient "Indépendant"/"Indie")
 async function chargerDetailsStore(appid) {
   const c = cache.details[appid];
@@ -115,13 +142,10 @@ async function chargerDetailsStore(appid) {
 }
 
 // ---------- Fusion des données ----------
-function fusionnerJeux(top100, tous) {
-  const jeux = {};
-  for (const source of [tous, top100]) {
-    for (const id in source) {
-      const j = source[id];
-      jeux[id] = {
-        appid: j.appid,
+// Transforme un jeu au format SteamSpy en jeu "à nous" (noms en français)
+function versJeu(j, top100) {
+  return {
+        appid: Number(j.appid),
         nom: j.name,
         developpeur: j.developer,
         editeur: j.publisher,
@@ -133,9 +157,14 @@ function fusionnerJeux(top100, tous) {
         tempsMedianMin: j.median_forever,
         prixCentimes: Number(j.price) || 0, // SteamSpy donne le prix en centimes (USD)
         joueursPicHier: j.ccu, // pic de joueurs connectés en même temps hier
-        tendance: !!top100[id], // fait partie du top 100 des 2 dernières semaines
-      };
-    }
+        tendance: !!top100[j.appid], // fait partie du top 100 des 2 dernières semaines
+  };
+}
+
+function fusionnerJeux(top100, tous) {
+  const jeux = {};
+  for (const source of [tous, top100]) {
+    for (const id in source) jeux[id] = versJeu(source[id], top100);
   }
   return jeux;
 }
@@ -146,6 +175,7 @@ function ajouterDetails(jeu) {
   if (d && d.ok) {
     jeu.sortie = d.sortie;
     jeu.genres = d.genres;
+    jeu.typeStore = d.type; // "game", "dlc", "hardware"... (Wallpaper Engine est aussi "game" !)
     if (d.prixEuros !== null) jeu.prixEuros = d.prixEuros;
     if (d.gratuit) jeu.prixEuros = 0;
   }
@@ -153,39 +183,49 @@ function ajouterDetails(jeu) {
 }
 
 // ---------- Enrichissement en arrière-plan ----------
-// Le Store n'accepte pas trop de requêtes (environ 200 toutes les 5 minutes),
-// donc on demande les détails un jeu à la fois, toutes les 1,6 secondes.
-const fileAttente = [];
-let enCours = false;
+// Les API n'acceptent pas trop de requêtes d'un coup, donc on fait une
+// "file d'attente" : on demande un jeu à la fois, avec une pause entre deux.
+//  - Store : environ 200 requêtes toutes les 5 minutes -> 1 toutes les 1,6 s
+//  - SteamSpy (fiche d'un jeu) : 1 requête par seconde maximum -> 1 toutes les 1,2 s
+function creerFile(nom, charger, estAJour, pauseMs) {
+  const file = [];
+  let enCours = false;
 
-function ajouterAFile(ids) {
-  for (const id of ids) {
-    const c = cache.details[id];
-    const aJour = c && Date.now() - c.date < UNE_SEMAINE;
-    if (!aJour && !fileAttente.includes(id)) fileAttente.push(id);
-  }
-  traiterFile();
-}
-
-async function traiterFile() {
-  if (enCours) return;
-  enCours = true;
-  while (fileAttente.length > 0) {
-    const id = fileAttente.shift();
-    try {
-      await chargerDetailsStore(id);
-    } catch (err) {
-      console.error(`Détails du jeu ${id} impossibles :`, err.message);
-      if (String(err.message).includes("429")) {
-        // trop de requêtes : on attend 1 minute avant de reprendre
-        fileAttente.unshift(id);
-        await new Promise((r) => setTimeout(r, 60 * 1000));
+  async function traiter() {
+    if (enCours) return;
+    enCours = true;
+    while (file.length > 0) {
+      const id = file.shift();
+      try {
+        await charger(id);
+      } catch (err) {
+        console.error(`${nom} : jeu ${id} impossible :`, err.message);
+        if (String(err.message).includes("429")) {
+          // trop de requêtes : on attend 1 minute avant de reprendre
+          file.unshift(id);
+          await new Promise((r) => setTimeout(r, 60 * 1000));
+        }
       }
+      await new Promise((r) => setTimeout(r, pauseMs));
     }
-    await new Promise((r) => setTimeout(r, 1600));
+    enCours = false;
   }
-  enCours = false;
+
+  return {
+    ajouter(ids) {
+      for (const id of ids) {
+        if (!estAJour(id) && !file.includes(id)) file.push(id);
+      }
+      traiter();
+    },
+    get taille() { return file.length; },
+  };
 }
+
+const fileStore = creerFile("Store", chargerDetailsStore,
+  (id) => cache.details[id] && Date.now() - cache.details[id].date < UNE_SEMAINE, 1600);
+const fileSteamSpy = creerFile("SteamSpy", chargerSteamSpyJeu,
+  (id) => cache.steamspy[id] && Date.now() - cache.steamspy[id].date < UN_JOUR, 1200);
 
 // ---------- Les routes de notre API à nous ----------
 
@@ -208,6 +248,9 @@ app.get("/api/top-du-jour", async (req, res) => {
         nom: top100[r.appid] ? top100[r.appid].name : (cache.details[r.appid] || {}).nom || null,
         joueurs: r.peak_in_game,
         rangSemaineDerniere: r.last_week_rank,
+        // pour savoir si c'est un jeu ou un logiciel (règle 8, côté page)
+        genres: (cache.details[r.appid] || {}).genres || null,
+        typeStore: (cache.details[r.appid] || {}).type || null,
       }));
       // les noms manquants : on demande au Store
       for (const j of liste) {
@@ -239,19 +282,53 @@ app.get("/api/top-du-jour", async (req, res) => {
 // La liste complète des jeux pour l'interface de tri
 app.get("/api/jeux", async (req, res) => {
   try {
-    const [top100, tous] = await Promise.all([
+    const [top100, tous, classement, vitrine] = await Promise.all([
       chargerTop100(),
       chargerTousPage0().catch(() => ({})),
+      chargerTopDuJour().catch(() => []),
+      chargerVitrine().catch(() => ({ meilleuresVentes: [], nouveautes: [] })),
     ]);
-    const jeux = Object.values(fusionnerJeux(top100, tous)).map(ajouterDetails);
+    const parId = fusionnerJeux(top100, tous);
 
-    // on demande les détails du Store d'abord pour les jeux en tendance
-    jeux.sort((a, b) => (b.tendance - a.tendance) || (b.joueursPicHier - a.joueursPicHier));
-    ajouterAFile(jeux.map((j) => j.appid));
+    // Les jeux "qui montent" : classement du jour + meilleures ventes + nouveautés.
+    // S'ils ne sont pas dans les listes SteamSpy, on va chercher leur fiche une par une.
+    const rangs = {};
+    for (const r of classement) rangs[r.appid] = r;
+    const candidats = [...new Set([
+      ...classement.map((r) => r.appid),
+      ...vitrine.meilleuresVentes,
+      ...vitrine.nouveautes,
+    ])];
+    const aChercher = [];
+    for (const id of candidats) {
+      if (parId[id]) continue;
+      const fiche = cache.steamspy[id];
+      if (fiche && fiche.ok) parId[id] = versJeu(fiche, top100);
+      else aChercher.push(id); // la file ignore les jeux déjà demandés aujourd'hui
+    }
+    fileSteamSpy.ajouter(aChercher);
 
-    const total = jeux.length;
+    // On note la position de chaque jeu dans les classements du jour
+    for (const id in parId) {
+      const r = rangs[id];
+      if (r) {
+        parId[id].rangDuJour = r.rank;
+        parId[id].rangSemaineDerniere = r.last_week_rank || 0; // 0 = nouveau dans le top 100
+        parId[id].picAujourdhui = r.peak_in_game;
+      }
+      if (vitrine.meilleuresVentes.includes(Number(id))) parId[id].meilleureVente = true;
+    }
+
+    const jeux = Object.values(parId).map(ajouterDetails);
+
+    // on demande les détails du Store d'abord pour les jeux du jour et en tendance
+    jeux.sort((a, b) => (!!b.rangDuJour - !!a.rangDuJour) || (b.tendance - a.tendance) || (b.joueursPicHier - a.joueursPicHier));
+    fileStore.ajouter(jeux.map((j) => j.appid));
+
+    const enAttente = fileSteamSpy.taille;
+    const total = jeux.length + enAttente;
     const enrichis = jeux.filter((j) => j.genres).length;
-    res.json({ jeux, enrichissement: { total, enrichis } });
+    res.json({ jeux, enrichissement: { total, enrichis, enAttente } });
   } catch (err) {
     res.status(502).json({ erreur: "Impossible de charger les jeux : " + err.message });
   }

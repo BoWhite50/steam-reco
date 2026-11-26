@@ -105,6 +105,15 @@ h3 { font-size: 0.95rem; }
   border-radius: 999px;
   display: flex; align-items: center; justify-content: center;
 }
+.carte-top-etiquette {
+  position: absolute; bottom: 10px; left: 10px;
+  color: #fff; font-weight: 600; font-size: 0.8rem;
+  padding: 3px 10px; border-radius: 999px;
+  background: var(--neutre);
+}
+.carte-top-etiquette.top { background: var(--top); }
+.carte-top-etiquette.bon { background: var(--bon); }
+.carte-top-etiquette.moyen { background: var(--moyen); }
 .carte-top-texte { padding: 12px 14px 14px; }
 .carte-top-nom { font-weight: 600; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .carte-top-joueurs { color: var(--texte-doux); font-size: 0.9rem; margin-top: 2px; }

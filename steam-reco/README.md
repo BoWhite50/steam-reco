@@ -7,13 +7,14 @@ Projet étudiant Ynov, cours "Outils IA".
 ## Ce que fait le site
 
 1. **Carrousel "Top du jour"** en haut : les jeux les plus joués aujourd'hui sur Steam, en grandes cartes. On passe d'une page à l'autre avec les flèches (boutons ou touches ← →).
-2. **Interface de recommandation** en dessous :
-   - des curseurs pour dire ce qui compte pour toi (avis, rentabilité, durée de vie, rétention, nombre de joueurs) ;
-   - des filtres (type de jeu indé / gros budget, prix max, temps de jeu minimum, recherche par nom, tri) ;
+2. **Carrousel "Pépites montantes"** : les jeux récents, pas chers et très bien notés qui explosent en ce moment (comme Peak ou How to Fish).
+3. **Interface de recommandation** en dessous :
+   - des curseurs pour dire ce qui compte pour toi (avis, rentabilité, durée de vie, rétention, nombre de joueurs, pépite montante) ;
+   - des filtres (jeux vidéo ou logiciels, type de jeu indé / gros budget, prix max, temps de jeu minimum, recherche par nom, tri) ;
    - un graphique "prix / durée de vie" ;
    - une fiche détaillée pour chaque jeu, avec un graphique radar et le nombre de joueurs connectés en direct.
 
-## Les 6 règles d'analyse
+## Les 8 règles d'analyse
 
 Elles sont toutes dans `public/js/regles.js`.
 
@@ -25,8 +26,12 @@ Elles sont toutes dans `public/js/regles.js`.
 | 4 | Rétention | pour les jeux de plus de 2 ans : pic de joueurs d'hier ÷ nombre de propriétaires | Toujours très joué, Communauté fidèle, En déclin, Presque abandonné |
 | 5 | Budget | genre "Indie" sur le Store, éditeur connu, ou nombre de propriétaires + prix | Indé, Intermédiaire, Gros budget |
 | 6 | Nombre de joueurs | pic de joueurs connectés hier | Niche, Actif, Très populaire, Massif |
+| 7 | Pépite montante | pour les jeux de moins de 2 ans : qualité des avis (30 %) + petit prix (20 %) + popularité (30 %) + fraîcheur (20 %), + bonus si le jeu gagne des places dans le classement du jour ou est en meilleure vente | Pépite montante, Prometteur, Récent, Pas récent |
+| 8 | Jeu ou logiciel | sur Steam, Wallpaper Engine ou Blender ont le type "game" comme les jeux ; on regarde donc les genres du Store ("Utilities", "Design & Illustration"…). Un type autre que "game" (matériel, DLC) = Pas un jeu | Jeu vidéo, Logiciel / utilitaire, Pas un jeu |
 
-**Score de recommandation (sur 100)** : moyenne des scores des règles 1, 2, 3, 4 et 6, pondérée par les curseurs. Le choix du type de jeu (règle 5) donne +10 ou −10 points.
+Une **vraie pépite** doit cocher toutes les cases : pas un gros budget, 20 € maximum, au moins 85 % d'avis positifs (avec 200 avis minimum) et au moins 2 000 joueurs en même temps.
+
+**Score de recommandation (sur 100)** : moyenne des scores des règles 1, 2, 3, 4, 6 et 7, pondérée par les curseurs. Le choix du type de jeu (règle 5) donne +10 ou −10 points.
 
 ## Les API utilisées
 
@@ -34,7 +39,9 @@ Elles sont toutes dans `public/js/regles.js`.
 |-----|------------------|
 | SteamSpy `request=top100in2weeks` | les 100 jeux les plus joués des 2 dernières semaines |
 | SteamSpy `request=all&page=0` | les 1000 jeux avec le plus de propriétaires |
-| Steam `ISteamChartsService/GetMostPlayedGames` | le classement du jour (bandeau) |
+| Steam `ISteamChartsService/GetMostPlayedGames` | le classement du jour (carrousel) et la progression de chaque jeu depuis la semaine dernière |
+| Steam Store `featuredcategories` | les meilleures ventes et les nouveautés du moment |
+| SteamSpy `request=appdetails` | avis, temps de jeu et propriétaires des jeux récents qui ne sont pas encore dans les grandes listes |
 | Steam Store `appdetails` | date de sortie, genres, prix en euros |
 | Steam `ISteamUserStats/GetNumberOfCurrentPlayers` | joueurs connectés en ce moment (fiche détaillée) |
 
@@ -56,14 +63,16 @@ npm start
 
 3. Ouvrir http://localhost:3000 dans le navigateur.
 
+**Plus simple sous Windows :** double-clic sur `lancer-site.bat`. Il fait `npm install` la première fois, lance le serveur et ouvre le site dans le navigateur. Pour arrêter, on ferme la fenêtre noire.
+
 ## Organisation des fichiers
 
 ```
 server.js            le serveur (appels aux API + cache)
 public/index.html    la page
 public/css/style.css le style
-public/js/regles.js  les 6 règles d'analyse + le score
-public/js/app.js     l'affichage (bandeau, liste, graphiques, fiche)
+public/js/regles.js  les 8 règles d'analyse + le score
+public/js/app.js     l'affichage (carrousels, liste, graphiques, fiche)
 data/cache.json      le cache (créé automatiquement, pas envoyé sur Git)
 DOC_IA.md            comment l'IA a été utilisée dans le projet
 ```

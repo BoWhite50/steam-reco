@@ -29,6 +29,20 @@
     </div>
   </section>
 
+  <!-- ===== 1 bis. Le carrousel "pépites montantes" ===== -->
+  <section class="top-jour conteneur" aria-label="Pépites montantes">
+    <div class="top-entete">
+      <h2>Pépites montantes <span class="aide">récents, pas chers, très bien notés et qui explosent en ce moment</span></h2>
+      <div class="fleches">
+        <button class="fleche" id="pepites-precedent" aria-label="Pépites précédentes">‹</button>
+        <button class="fleche" id="pepites-suivant" aria-label="Pépites suivantes">›</button>
+      </div>
+    </div>
+    <div class="carrousel" id="carrousel-pepites">
+      <span class="aide">Recherche des pépites…</span>
+    </div>
+  </section>
+
   <!-- ===== 2. L'interface de recherche et de tri ===== -->
   <main class="conteneur principal">
 
@@ -56,8 +70,21 @@
         <label for="poids-joueurs">Nombre de joueurs <span id="val-joueurs">5</span></label>
         <input type="range" id="poids-joueurs" min="0" max="10" value="5">
       </div>
+      <div class="curseur">
+        <label for="poids-pepite">Pépite montante (récent, pas cher, en forte hausse) <span id="val-pepite">0</span></label>
+        <input type="range" id="poids-pepite" min="0" max="10" value="0">
+      </div>
 
       <h2>Filtres</h2>
+
+      <div class="champ">
+        <label for="categorie">Jeux ou logiciels</label>
+        <select id="categorie">
+          <option value="jeu">Jeux vidéo seulement</option>
+          <option value="logiciel">Logiciels / utilitaires seulement</option>
+          <option value="tout">Tout afficher</option>
+        </select>
+      </div>
 
       <div class="champ">
         <label for="type-jeu">Type de jeu</label>
@@ -93,6 +120,7 @@
           <option value="duree">Durée de vie</option>
           <option value="retention">Rétention</option>
           <option value="joueurs">Nombre de joueurs</option>
+          <option value="pepite">Pépite montante</option>
           <option value="prix">Prix (moins cher d'abord)</option>
         </select>
       </div>

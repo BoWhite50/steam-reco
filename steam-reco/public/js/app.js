@@ -32,11 +32,14 @@ async function chargerTopDuJour() {
       let evolution = "";
       if (j.rangSemaineDerniere && j.rangSemaineDerniere > j.rang) evolution = ` · <span class="fleche-haut">▲ ${j.rangSemaineDerniere - j.rang}</span>`;
       if (j.rangSemaineDerniere && j.rangSemaineDerniere < j.rang) evolution = ` · <span class="fleche-bas">▼ ${j.rang - j.rangSemaineDerniere}</span>`;
+      const cat = regleCategorie(j); // règle 8 : on signale les logiciels
+      const etiquetteCat = cat.categorie !== "jeu" ? `<span class="carte-top-etiquette moyen">${echapper(cat.etiquette)}</span>` : "";
       return `
         <button class="carte-top" data-appid="${j.appid}">
           <div class="carte-top-image">
             <img src="${imageDuJeu(j.appid, "header")}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
             <span class="carte-top-rang">${j.rang}</span>
+            ${etiquetteCat}
           </div>
           <div class="carte-top-texte">
             <div class="carte-top-nom">${echapper(j.nom)}</div>
@@ -54,21 +57,65 @@ async function chargerTopDuJour() {
   majFleches();
 }
 
+// ---------- 1 bis. Le carrousel "pépites montantes" (règle 7) ----------
+function afficherPepites() {
+  const carrousel = $("carrousel-pepites");
+  const candidats = tousLesJeux
+    .map((jeu) => ({ jeu, r: reglePepite(jeu) }))
+    .filter(({ r }) => r.mois !== undefined && r.score >= 50)
+    .sort((a, b) => (b.r.estPepite - a.r.estPepite) || (b.r.score - a.r.score))
+    .slice(0, 15);
+
+  if (candidats.length === 0) {
+    carrousel.innerHTML = '<span class="aide">Pas encore de pépite trouvée : les infos des jeux récents arrivent petit à petit…</span>';
+  } else {
+    carrousel.innerHTML = candidats.map(({ jeu, r }) => {
+      const prix = prixDuJeu(jeu);
+      const prixTexte = prix === 0 ? "Gratuit" : prix.toFixed(2).replace(".", ",") + " €";
+      return `
+        <button class="carte-top" data-appid="${jeu.appid}">
+          <div class="carte-top-image">
+            <img src="${imageDuJeu(jeu.appid, "header")}" alt="" loading="lazy" onerror="this.style.visibility='hidden'">
+            <span class="carte-top-rang" title="Score pépite">${Math.round(r.score)}</span>
+            <span class="carte-top-etiquette ${r.niveau}">${echapper(r.etiquette)}</span>
+          </div>
+          <div class="carte-top-texte">
+            <div class="carte-top-nom">${echapper(jeu.nom)}</div>
+            <div class="carte-top-joueurs">${prixTexte} · ${Math.round(r.pct)} % d'avis positifs · ${r.joueurs.toLocaleString("fr-FR")} joueurs max</div>
+            <div class="carte-top-joueurs"><span class="fleche-haut">${echapper(r.valeur)}</span></div>
+          </div>
+        </button>`;
+    }).join("");
+    carrousel.querySelectorAll(".carte-top").forEach((b) =>
+      b.addEventListener("click", () => ouvrirDetail(Number(b.dataset.appid)))
+    );
+  }
+  majFleches();
+}
+
+// Les deux carrousels et leurs flèches
+const CARROUSELS = [
+  { liste: "carrousel", precedent: "top-precedent", suivant: "top-suivant" },
+  { liste: "carrousel-pepites", precedent: "pepites-precedent", suivant: "pepites-suivant" },
+];
+
 // Les flèches font avancer le carrousel d'une "page" (la largeur visible)
-function deplacerCarrousel(sens) {
-  const c = $("carrousel");
+function deplacerCarrousel(id, sens) {
+  const c = $(id);
   c.scrollBy({ left: sens * c.clientWidth, behavior: "smooth" });
 }
 
 // On grise la flèche quand on est au début ou à la fin
 function majFleches() {
-  const c = $("carrousel");
-  $("top-precedent").disabled = c.scrollLeft <= 2;
-  $("top-suivant").disabled = c.scrollLeft + c.clientWidth >= c.scrollWidth - 2;
+  for (const k of CARROUSELS) {
+    const c = $(k.liste);
+    $(k.precedent).disabled = c.scrollLeft <= 2;
+    $(k.suivant).disabled = c.scrollLeft + c.clientWidth >= c.scrollWidth - 2;
+  }
 }
 
 // ---------- 2. Lire les paramètres choisis par l'utilisateur ----------
-const CLES_POIDS = ["avis", "rentabilite", "duree", "retention", "joueurs"];
+const CLES_POIDS = ["avis", "rentabilite", "duree", "retention", "joueurs", "pepite"];
 
 function lireParametres() {
   const poids = {};
@@ -84,6 +131,7 @@ function lireParametres() {
   return {
     poids,
     typePrefere: $("type-jeu").value,
+    categorie: $("categorie").value,
     prixMax: prixMax >= 80 ? Infinity : prixMax,
     dureeMin,
     recherche: $("recherche").value.trim().toLowerCase(),
@@ -103,6 +151,7 @@ function calculerResultats() {
     if (jeu.tempsMoyenMin / 60 < p.dureeMin) return false;
     if (p.recherche && !jeu.nom.toLowerCase().includes(p.recherche)) return false;
     if (p.tendanceSeulement && !jeu.tendance) return false;
+    if (p.categorie !== "tout" && regleCategorie(jeu).categorie !== p.categorie) return false;
     return true;
   });
 
@@ -139,6 +188,8 @@ function afficher() {
               ${badge({ ...a.retention, etiquette: a.retention.etiquette })}
               ${badge({ ...a.budget, etiquette: a.budget.etiquette })}
               ${badge({ ...a.joueurs, etiquette: a.joueurs.etiquette })}
+              ${a.categorie.categorie !== "jeu" ? badge(a.categorie) : ""}
+              ${a.pepite.niveau === "top" || a.pepite.niveau === "bon" ? badge(a.pepite) : ""}
             </div>
           </div>
           <div class="jeu-score"><strong>${a.score}</strong><span>/ 100</span></div>
@@ -226,6 +277,8 @@ async function ouvrirDetail(appid) {
       ${ligne("4. Rétention", a.retention)}
       ${ligne("5. Budget", a.budget)}
       ${ligne("6. Joueurs", a.joueurs)}
+      ${ligne("7. Pépite montante", a.pepite)}
+      ${ligne("8. Jeu ou logiciel", a.categorie)}
     </table>
     <a class="lien-steam" href="https://store.steampowered.com/app/${appid}" target="_blank" rel="noopener">Voir la page Steam</a>`;
 
@@ -250,9 +303,9 @@ function dessinerRadar(a) {
   graphiqueRadar = new Chart($("graphique-radar"), {
     type: "radar",
     data: {
-      labels: ["Avis", "Rentabilité", "Durée de vie", "Rétention", "Joueurs"],
+      labels: ["Avis", "Rentabilité", "Durée de vie", "Rétention", "Joueurs", "Pépite"],
       datasets: [{
-        data: [a.avis.score, a.rentabilite.score, a.duree.score, a.retention.score, a.joueurs.score].map(Math.round),
+        data: [a.avis.score, a.rentabilite.score, a.duree.score, a.retention.score, a.joueurs.score, a.pepite.score].map(Math.round),
         backgroundColor: couleurAccent + "33",
         borderColor: couleurAccent,
         pointBackgroundColor: couleurAccent,
@@ -274,9 +327,10 @@ async function chargerJeux() {
     if (!rep.ok) throw new Error(d.erreur);
     tousLesJeux = d.jeux;
     afficher();
+    afficherPepites();
 
-    const { total, enrichis } = d.enrichissement;
-    if (enrichis < total) {
+    const { total, enrichis, enAttente } = d.enrichissement;
+    if (enrichis < total || enAttente > 0) {
       $("etat-enrichissement").textContent =
         `Infos détaillées (date de sortie, genre) : ${enrichis} / ${total} jeux. Mise à jour automatique…`;
       setTimeout(chargerJeux, 30000); // on redemande dans 30 secondes
@@ -290,7 +344,7 @@ async function chargerJeux() {
 
 // ---------- 8. Les événements ----------
 const VALEURS_DEFAUT = {
-  "poids-avis": 5, "poids-rentabilite": 5, "poids-duree": 5, "poids-retention": 5, "poids-joueurs": 5,
+  "poids-avis": 5, "poids-rentabilite": 5, "poids-duree": 5, "poids-retention": 5, "poids-joueurs": 5, "poids-pepite": 0,
   "prix-max": 80, "duree-min": 0,
 };
 
@@ -301,6 +355,7 @@ $("voir-plus").addEventListener("click", () => { nombreAffiches += 20; afficher(
 $("reinitialiser").addEventListener("click", () => {
   for (const id in VALEURS_DEFAUT) $(id).value = VALEURS_DEFAUT[id];
   $("type-jeu").value = "tous";
+  $("categorie").value = "jeu";
   $("tri").value = "score";
   $("recherche").value = "";
   $("tendance-seulement").checked = false;
@@ -309,14 +364,16 @@ $("reinitialiser").addEventListener("click", () => {
 $("fermer-detail").addEventListener("click", () => $("detail").close());
 $("detail").addEventListener("click", (e) => { if (e.target === $("detail")) $("detail").close(); });
 
-$("top-precedent").addEventListener("click", () => deplacerCarrousel(-1));
-$("top-suivant").addEventListener("click", () => deplacerCarrousel(1));
-$("carrousel").addEventListener("scroll", majFleches);
+for (const k of CARROUSELS) {
+  $(k.precedent).addEventListener("click", () => deplacerCarrousel(k.liste, -1));
+  $(k.suivant).addEventListener("click", () => deplacerCarrousel(k.liste, 1));
+  $(k.liste).addEventListener("scroll", majFleches);
+}
 window.addEventListener("resize", majFleches);
 document.addEventListener("keydown", (e) => {
   if ($("detail").open || e.target.matches("input, select")) return;
-  if (e.key === "ArrowLeft") deplacerCarrousel(-1);
-  if (e.key === "ArrowRight") deplacerCarrousel(1);
+  if (e.key === "ArrowLeft") deplacerCarrousel("carrousel", -1);
+  if (e.key === "ArrowRight") deplacerCarrousel("carrousel", 1);
 });
 
 chargerTopDuJour();

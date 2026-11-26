@@ -26,6 +26,19 @@ function anneeDeSortie(jeu) {
   return m ? Number(m[0]) : null;
 }
 
+// "26 Feb, 2016" ou "Feb 26, 2016" -> nombre de mois depuis la sortie (null si inconnu)
+const MOIS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
+function moisDepuisSortie(jeu) {
+  if (!jeu.sortie) return null;
+  const annee = jeu.sortie.match(/\d{4}/);
+  const mois = jeu.sortie.toLowerCase().match(/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/);
+  if (!annee || !mois) return null;
+  const jour = jeu.sortie.match(/\b(\d{1,2})\b/);
+  const date = new Date(Number(annee[0]), MOIS[mois[0]], jour ? Number(jour[1]) : 1);
+  const mois30 = (Date.now() - date.getTime()) / (30.44 * 24 * 3600 * 1000);
+  return Math.max(0, mois30);
+}
+
 function prixDuJeu(jeu) {
   if (typeof jeu.prixEuros === "number") return jeu.prixEuros;
   return jeu.prixCentimes / 100; // prix SteamSpy (en dollars, approximatif)
@@ -129,7 +142,7 @@ const GROS_EDITEURS = [
   "Electronic Arts", "Ubisoft", "Activision", "Bethesda", "Rockstar", "Take-Two", "2K",
   "Sony", "PlayStation", "Xbox", "Microsoft", "Square Enix", "CAPCOM", "Capcom",
   "BANDAI NAMCO", "Bandai Namco", "SEGA", "Warner Bros", "Valve", "Blizzard",
-  "CD PROJEKT", "KONAMI", "Epic Games", "FromSoftware", "Krafton", "NetEase", "Tencent",
+  "CD PROJEKT", "KONAMI", "Deep Silver", "PLAION", "Embracer", "THQ Nordic", "Paradox", "Epic Games", "FromSoftware", "Krafton", "NetEase", "Tencent",
 ];
 
 function regleBudget(jeu) {
@@ -166,6 +179,96 @@ function regleJoueurs(jeu) {
 }
 
 // -------------------------------------------------------------
+// RÈGLE 7 : la pépite montante
+// On cherche les jeux comme Peak ou How to Fish : récents, pas chers,
+// très bien notés, et qui attirent beaucoup de joueurs d'un coup.
+// Le score mélange 4 notes (sur 100) :
+//   - qualité     (30 %) : 70 % d'avis positifs = 0 pt, 95 % ou plus = 100 pts
+//   - petit prix  (20 %) : gratuit = 100 pts, 25 € ou plus = 0 pt
+//   - popularité  (30 %) : 100 joueurs = 0 pt, 100 000 joueurs = 100 pts (log)
+//   - fraîcheur   (20 %) : sorti aujourd'hui = 100 pts, il y a 2 ans = 0 pt
+// Pour être une vraie pépite : pas un gros budget, 20 € max, 85 % d'avis positifs
+// (avec au moins 200 avis) et au moins 2 000 joueurs en même temps.
+// + bonus "montée" : le jeu gagne des places dans le classement Steam du jour
+//   (jusqu'à +15), ou il vient d'y entrer (+15), ou il est dans les meilleures ventes (+5).
+// Un jeu de plus de 2 ans n'est jamais une "pépite montante" (score 0).
+// -------------------------------------------------------------
+function reglePepite(jeu) {
+  if (regleCategorie(jeu).categorie !== "jeu") {
+    return { valeur: "Ce n'est pas un jeu vidéo", etiquette: "Pas un jeu", score: 0, niveau: "neutre", estPepite: false };
+  }
+  const mois = moisDepuisSortie(jeu);
+  if (mois === null) return { valeur: "Date de sortie inconnue", etiquette: "Date inconnue", score: 0, niveau: "neutre", estPepite: false };
+  if (mois > 24) return { valeur: `Sorti il y a ${Math.round(mois / 12)} ans`, etiquette: "Pas récent", score: 0, niveau: "neutre", estPepite: false };
+
+  const totalAvis = jeu.avisPositifs + jeu.avisNegatifs;
+  const pct = totalAvis ? (jeu.avisPositifs / totalAvis) * 100 : 0;
+  let qualite = borner(((pct - 70) / 25) * 100, 0, 100);
+  if (totalAvis < 200) qualite /= 2; // trop peu d'avis pour être sûr
+
+  const prix = prixDuJeu(jeu);
+  const petitPrix = borner(100 - prix * 4, 0, 100);
+
+  const joueurs = Math.max(jeu.joueursPicHier || 0, jeu.picAujourdhui || 0);
+  const popularite = borner(((Math.log10(joueurs + 1) - 2) / 3) * 100, 0, 100);
+
+  const fraicheur = borner(100 - (mois / 24) * 100, 0, 100);
+
+  let bonus = 0;
+  let montee = "";
+  if (jeu.rangDuJour && jeu.rangSemaineDerniere === 0) { bonus = 15; montee = "nouveau dans le top 100"; }
+  else if (jeu.rangDuJour && jeu.rangSemaineDerniere > jeu.rangDuJour) {
+    const gain = jeu.rangSemaineDerniere - jeu.rangDuJour;
+    bonus = Math.min(15, gain);
+    montee = `+${gain} places en 1 semaine`;
+  }
+  if (jeu.meilleureVente) { bonus += 5; montee = montee ? montee + ", meilleure vente" : "meilleure vente"; }
+
+  const score = borner(0.3 * qualite + 0.2 * petitPrix + 0.3 * popularite + 0.2 * fraicheur + bonus, 0, 100);
+
+  // Une "vraie" pépite doit cocher toutes les cases (et ne pas venir d'un gros éditeur)
+  const grosBudget = regleBudget(jeu).type === "aaa";
+  const estPepite = !grosBudget && prix <= 20 && pct >= 85 && totalAvis >= 200 && joueurs >= 2000;
+
+  let etiquette, niveau;
+  if (estPepite && score >= 65) { etiquette = "Pépite montante"; niveau = "top"; }
+  else if (score >= 50) { etiquette = "Prometteur"; niveau = "bon"; }
+  else { etiquette = "Récent"; niveau = "moyen"; }
+
+  const age = mois < 1 ? "Sorti ce mois-ci" : `Sorti il y a ${Math.round(mois)} mois`;
+  return { valeur: age + (montee ? ` · ${montee}` : ""), etiquette, score, niveau, estPepite, mois, joueurs, pct };
+}
+
+// -------------------------------------------------------------
+// RÈGLE 8 : jeu vidéo ou logiciel ?
+// Sur Steam, Wallpaper Engine ou Blender ont le type "game" comme les vrais jeux.
+// La différence se voit dans les genres du Store : les logiciels ont des genres
+// comme "Utilities" ou "Design & Illustration".
+//  - type différent de "game" (matériel, DLC, musique...) -> Autre
+//  - au moins un genre "logiciel"                           -> Logiciel
+//  - sinon                                                  -> Jeu vidéo
+// -------------------------------------------------------------
+const GENRES_LOGICIELS = [
+  "Utilities", "Animation & Modeling", "Audio Production", "Design & Illustration",
+  "Photo Editing", "Video Production", "Software Training", "Web Publishing",
+  "Game Development", "Accounting", "Education",
+];
+
+function regleCategorie(jeu) {
+  if (jeu.typeStore && jeu.typeStore !== "game") {
+    return { categorie: "autre", valeur: `Type Steam : ${jeu.typeStore}`, etiquette: "Pas un jeu", score: null, niveau: "neutre" };
+  }
+  if (!jeu.genres) {
+    return { categorie: "jeu", valeur: "Genres pas encore chargés", etiquette: "Jeu vidéo (estimé)", score: null, niveau: "neutre" };
+  }
+  const genresLogiciel = jeu.genres.filter((g) => GENRES_LOGICIELS.includes(g));
+  if (genresLogiciel.length > 0) {
+    return { categorie: "logiciel", valeur: genresLogiciel.join(", "), etiquette: "Logiciel / utilitaire", score: null, niveau: "moyen" };
+  }
+  return { categorie: "jeu", valeur: jeu.genres.join(", "), etiquette: "Jeu vidéo", score: null, niveau: "neutre" };
+}
+
+// -------------------------------------------------------------
 // SCORE DE RECOMMANDATION
 // Moyenne pondérée des scores des règles. Les poids viennent des curseurs (0 à 10).
 // Bonus/malus selon le type préféré (indé / gros budget).
@@ -178,13 +281,16 @@ function analyserJeu(jeu, poids, typePrefere) {
     retention: regleRetention(jeu),
     budget: regleBudget(jeu),
     joueurs: regleJoueurs(jeu),
+    pepite: reglePepite(jeu),
+    categorie: regleCategorie(jeu),
   };
 
   let somme = 0;
   let totalPoids = 0;
-  for (const cle of ["avis", "rentabilite", "duree", "retention", "joueurs"]) {
-    somme += r[cle].score * poids[cle];
-    totalPoids += poids[cle];
+  for (const cle of ["avis", "rentabilite", "duree", "retention", "joueurs", "pepite"]) {
+    const p = poids[cle] || 0;
+    somme += r[cle].score * p;
+    totalPoids += p;
   }
   let score = totalPoids > 0 ? somme / totalPoids : 0;
 
