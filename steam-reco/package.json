@@ -1,0 +1,16 @@
+{
+  "name": "steam-reco",
+  "version": "1.0.0",
+  "description": "Site de recommandation de jeux Steam avec des règles d'analyse éditables",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.1",
+    "express": "^4.21.2"
+  }
+}

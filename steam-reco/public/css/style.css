@@ -1,0 +1,256 @@
+/* ===== Couleurs (thème sobre, clair et sombre automatique) ===== */
+:root {
+  --fond: #f5f6f8;
+  --surface: #ffffff;
+  --bordure: #e2e5ea;
+  --texte: #1c2027;
+  --texte-doux: #646b78;
+  --accent: #2f6fde;
+  --top: #1f9d55;
+  --bon: #4d9c6b;
+  --moyen: #c28a12;
+  --mauvais: #c8463d;
+  --neutre: #7b8291;
+  --rayon: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fond: #111418;
+    --surface: #1a1e24;
+    --bordure: #2a3039;
+    --texte: #e7e9ee;
+    --texte-doux: #9aa1ad;
+    --accent: #6c9ef8;
+    --top: #3cc47a;
+    --bon: #6bb88a;
+    --moyen: #e0a93a;
+    --mauvais: #e5675e;
+    --neutre: #8c93a0;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--fond);
+  color: var(--texte);
+  line-height: 1.45;
+}
+
+.conteneur { max-width: 1200px; margin: 0 auto; padding: 0 16px; }
+
+h1, h2, h3 { margin: 0; }
+h2 { font-size: 1.05rem; }
+h3 { font-size: 0.95rem; }
+.aide { color: var(--texte-doux); font-size: 0.85rem; margin: 4px 0 12px; }
+
+/* ===== En-tête ===== */
+.entete { background: var(--surface); border-bottom: 1px solid var(--bordure); }
+.entete-contenu { display: flex; align-items: baseline; gap: 16px; padding-top: 14px; padding-bottom: 14px; flex-wrap: wrap; }
+.entete h1 { font-size: 1.3rem; letter-spacing: -0.01em; }
+.sous-titre { margin: 0; color: var(--texte-doux); }
+
+/* ===== Carrousel "top du jour" ===== */
+.top-jour { padding-top: 24px; }
+.top-entete { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.top-entete h2 { font-size: 1.25rem; }
+.top-entete .aide { font-weight: 400; margin-left: 8px; }
+.fleches { display: flex; gap: 8px; flex-shrink: 0; }
+.fleche {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--bordure);
+  background: var(--surface);
+  color: var(--texte);
+  font-size: 1.5rem; line-height: 1;
+  cursor: pointer;
+}
+.fleche:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.fleche:disabled { opacity: 0.35; cursor: default; }
+
+.carrousel {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  scrollbar-width: none;       /* on cache la barre : on utilise les flèches */
+  padding-bottom: 4px;
+}
+.carrousel::-webkit-scrollbar { display: none; }
+
+.carte-top {
+  flex: 0 0 calc((100% - 32px) / 3); /* 3 jeux visibles en même temps */
+  scroll-snap-align: start;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+.carte-top:hover { border-color: var(--accent); }
+.carte-top-image { position: relative; aspect-ratio: 460 / 215; background: var(--fond); }
+.carte-top-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.carte-top-rang {
+  position: absolute; top: 10px; left: 10px;
+  background: var(--accent); color: #fff;
+  font-weight: 700; font-size: 1.1rem;
+  min-width: 40px; height: 40px; padding: 0 8px;
+  border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+}
+.carte-top-texte { padding: 12px 14px 14px; }
+.carte-top-nom { font-weight: 600; font-size: 1.05rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.carte-top-joueurs { color: var(--texte-doux); font-size: 0.9rem; margin-top: 2px; }
+.fleche-haut { color: var(--top); }
+.fleche-bas { color: var(--mauvais); }
+
+@media (max-width: 900px) { .carte-top { flex-basis: calc((100% - 16px) / 2); } }
+@media (max-width: 560px) {
+  .carte-top { flex-basis: 85%; }
+  .top-entete .aide { display: block; margin-left: 0; }
+}
+
+/* ===== Mise en page principale ===== */
+.principal {
+  display: grid;
+  grid-template-columns: 290px 1fr;
+  gap: 24px;
+  padding-top: 24px;
+  padding-bottom: 24px;
+}
+@media (max-width: 800px) {
+  .principal { grid-template-columns: 1fr; }
+}
+
+/* ===== Panneau des paramètres ===== */
+.panneau {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 18px;
+  align-self: start;
+  position: sticky;
+  top: 16px;
+}
+@media (max-width: 800px) { .panneau { position: static; } }
+.panneau h2 + .aide { margin-top: 2px; }
+.panneau h2:not(:first-child) { margin-top: 22px; margin-bottom: 10px; }
+
+.curseur, .champ { margin-bottom: 14px; }
+.curseur label, .champ label { display: flex; justify-content: space-between; font-size: 0.88rem; margin-bottom: 4px; }
+.curseur span, .champ label span { color: var(--accent); font-weight: 600; }
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+select, input[type="search"] {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--bordure);
+  border-radius: 7px;
+  background: var(--fond);
+  color: var(--texte);
+  font: inherit;
+  font-size: 0.9rem;
+}
+.case { display: flex; gap: 8px; font-size: 0.85rem; align-items: flex-start; margin: 6px 0 16px; }
+
+.bouton-secondaire {
+  width: 100%;
+  padding: 8px;
+  background: transparent;
+  border: 1px solid var(--bordure);
+  border-radius: 7px;
+  color: var(--texte);
+  font: inherit;
+  cursor: pointer;
+}
+.bouton-secondaire:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ===== Résultats ===== */
+.resultats { min-width: 0; }
+.resultats-entete { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+
+.carte-graphique {
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.graphique-zone { position: relative; height: 260px; }
+
+.liste-jeux { display: flex; flex-direction: column; gap: 10px; }
+
+.jeu {
+  display: grid;
+  grid-template-columns: 40px 184px 1fr 70px;
+  gap: 14px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 12px;
+  cursor: pointer;
+}
+.jeu:hover { border-color: var(--accent); }
+.jeu-position { font-weight: 700; color: var(--texte-doux); text-align: center; }
+.jeu img { width: 184px; height: 69px; object-fit: cover; border-radius: 6px; background: var(--fond); }
+.jeu-nom { font-weight: 600; margin-bottom: 6px; }
+.jeu-nom small { font-weight: 400; color: var(--texte-doux); margin-left: 6px; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.badge.top { color: var(--top); }
+.badge.bon { color: var(--bon); }
+.badge.moyen { color: var(--moyen); }
+.badge.mauvais { color: var(--mauvais); }
+.badge.neutre { color: var(--neutre); }
+
+.jeu-score { text-align: center; }
+.jeu-score strong { display: block; font-size: 1.5rem; line-height: 1; }
+.jeu-score span { font-size: 0.7rem; color: var(--texte-doux); }
+
+@media (max-width: 640px) {
+  .jeu { grid-template-columns: 1fr 60px; }
+  .jeu-position, .jeu img { display: none; }
+}
+
+#voir-plus { margin-top: 12px; }
+
+/* ===== Fenêtre de détail ===== */
+.detail {
+  width: min(680px, calc(100% - 32px));
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--surface);
+  color: var(--texte);
+  padding: 20px;
+}
+.detail::backdrop { background: rgba(0, 0, 0, 0.5); }
+.detail img { width: 100%; border-radius: 8px; }
+.detail h2 { font-size: 1.25rem; margin: 12px 0 4px; }
+.fermer {
+  float: right;
+  background: none; border: none;
+  font-size: 1.6rem; line-height: 1;
+  color: var(--texte-doux);
+  cursor: pointer;
+}
+.tableau-regles { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 0.88rem; }
+.tableau-regles td { padding: 7px 4px; border-bottom: 1px solid var(--bordure); vertical-align: top; }
+.tableau-regles td:first-child { color: var(--texte-doux); width: 32%; }
+.graphique-radar { position: relative; height: 280px; }
+.lien-steam { color: var(--accent); }
+
+.pied { color: var(--texte-doux); font-size: 0.8rem; padding-bottom: 24px; }
+.erreur { color: var(--mauvais); }

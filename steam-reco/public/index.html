@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Steam Reco</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <header class="entete">
+    <div class="conteneur entete-contenu">
+      <h1>Steam Reco</h1>
+      <p class="sous-titre">Trouve ton prochain jeu selon <em>tes</em> critères</p>
+    </div>
+  </header>
+
+  <!-- ===== 1. Le carrousel "top du jour" ===== -->
+  <section class="top-jour conteneur" aria-label="Top du jour">
+    <div class="top-entete">
+      <h2>Top du jour <span class="aide">les jeux les plus joués aujourd'hui sur Steam</span></h2>
+      <div class="fleches">
+        <button class="fleche" id="top-precedent" aria-label="Jeux précédents">‹</button>
+        <button class="fleche" id="top-suivant" aria-label="Jeux suivants">›</button>
+      </div>
+    </div>
+    <div class="carrousel" id="carrousel">
+      <span class="aide">Chargement du classement…</span>
+    </div>
+  </section>
+
+  <!-- ===== 2. L'interface de recherche et de tri ===== -->
+  <main class="conteneur principal">
+
+    <aside class="panneau" aria-label="Paramètres">
+      <h2>Ce qui compte pour moi</h2>
+      <p class="aide">Bouge les curseurs : 0 = je m'en fiche, 10 = très important.</p>
+
+      <div class="curseur">
+        <label for="poids-avis">Avis des joueurs <span id="val-avis">5</span></label>
+        <input type="range" id="poids-avis" min="0" max="10" value="5">
+      </div>
+      <div class="curseur">
+        <label for="poids-rentabilite">Rentabilité (€ par heure) <span id="val-rentabilite">5</span></label>
+        <input type="range" id="poids-rentabilite" min="0" max="10" value="5">
+      </div>
+      <div class="curseur">
+        <label for="poids-duree">Durée de vie <span id="val-duree">5</span></label>
+        <input type="range" id="poids-duree" min="0" max="10" value="5">
+      </div>
+      <div class="curseur">
+        <label for="poids-retention">Rétention (jeux anciens) <span id="val-retention">5</span></label>
+        <input type="range" id="poids-retention" min="0" max="10" value="5">
+      </div>
+      <div class="curseur">
+        <label for="poids-joueurs">Nombre de joueurs <span id="val-joueurs">5</span></label>
+        <input type="range" id="poids-joueurs" min="0" max="10" value="5">
+      </div>
+
+      <h2>Filtres</h2>
+
+      <div class="champ">
+        <label for="type-jeu">Type de jeu</label>
+        <select id="type-jeu">
+          <option value="tous">Peu importe</option>
+          <option value="inde">Je préfère les jeux indé</option>
+          <option value="aaa">Je préfère les gros budgets</option>
+          <option value="moyen">Je préfère les intermédiaires</option>
+        </select>
+      </div>
+
+      <div class="champ">
+        <label for="prix-max">Prix maximum : <span id="val-prix">sans limite</span></label>
+        <input type="range" id="prix-max" min="0" max="80" step="5" value="80">
+      </div>
+
+      <div class="champ">
+        <label for="duree-min">Temps de jeu moyen minimum : <span id="val-duree-min">0 h</span></label>
+        <input type="range" id="duree-min" min="0" max="100" step="5" value="0">
+      </div>
+
+      <div class="champ">
+        <label for="recherche">Chercher un jeu</label>
+        <input type="search" id="recherche" placeholder="ex : Stardew">
+      </div>
+
+      <div class="champ">
+        <label for="tri">Trier par</label>
+        <select id="tri">
+          <option value="score">Score de recommandation</option>
+          <option value="avis">Avis</option>
+          <option value="rentabilite">Rentabilité</option>
+          <option value="duree">Durée de vie</option>
+          <option value="retention">Rétention</option>
+          <option value="joueurs">Nombre de joueurs</option>
+          <option value="prix">Prix (moins cher d'abord)</option>
+        </select>
+      </div>
+
+      <label class="case">
+        <input type="checkbox" id="tendance-seulement">
+        Seulement les jeux en tendance (top 100 des 2 dernières semaines)
+      </label>
+
+      <button id="reinitialiser" class="bouton-secondaire">Remettre par défaut</button>
+    </aside>
+
+    <section class="resultats" aria-label="Résultats">
+      <div class="resultats-entete">
+        <h2 id="titre-resultats">Recommandations</h2>
+        <span id="etat-enrichissement" class="aide"></span>
+      </div>
+
+      <div class="carte-graphique">
+        <h3>Prix et durée de vie des 50 premiers résultats</h3>
+        <p class="aide">Chaque point est un jeu. En haut à gauche : beaucoup d'heures pour peu d'argent.</p>
+        <div class="graphique-zone"><canvas id="graphique-nuage"></canvas></div>
+      </div>
+
+      <div id="liste-jeux" class="liste-jeux">
+        <p class="aide">Chargement des jeux…</p>
+      </div>
+      <button id="voir-plus" class="bouton-secondaire" hidden>Voir plus</button>
+    </section>
+  </main>
+
+  <!-- ===== Fenêtre de détail d'un jeu ===== -->
+  <dialog id="detail" class="detail">
+    <button class="fermer" id="fermer-detail" aria-label="Fermer">×</button>
+    <div id="detail-contenu"></div>
+    <div class="graphique-radar"><canvas id="graphique-radar"></canvas></div>
+  </dialog>
+
+  <footer class="pied conteneur">
+    Données : API Steam (Valve) et SteamSpy. Projet étudiant Ynov.
+  </footer>
+
+  <script src="lib/chart.umd.js"></script>
+  <script src="js/regles.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
